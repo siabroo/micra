@@ -20,7 +20,7 @@ func pickFreePort(t *testing.T) int {
 		t.Fatalf("listen: %v", err)
 	}
 	port := l.Addr().(*net.TCPAddr).Port
-	l.Close()
+	_ = l.Close()
 	return port
 }
 
@@ -45,7 +45,7 @@ func TestServer_ServesAndStops(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if c, err := net.DialTimeout("tcp", addr, 50*time.Millisecond); err == nil {
-			c.Close()
+			_ = c.Close()
 			break
 		}
 		time.Sleep(20 * time.Millisecond)
@@ -56,7 +56,7 @@ func TestServer_ServesAndStops(t *testing.T) {
 		t.Fatalf("GET: %v", err)
 	}
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if string(body) != "hi" {
 		t.Errorf("body = %q, want %q", string(body), "hi")
 	}

@@ -30,7 +30,7 @@ func HealthProbe(addr string) int {
 	if err != nil {
 		return 1
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	resp, err := grpc_health_v1.NewHealthClient(conn).Check(ctx, &grpc_health_v1.HealthCheckRequest{})

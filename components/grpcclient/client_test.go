@@ -20,7 +20,7 @@ func TestClient_HappyPath_DialsAndExposesConn(t *testing.T) {
 	lis := bufconn.Listen(1 << 16)
 	srv := grpc.NewServer()
 	healthpb.RegisterHealthServer(srv, health.NewServer())
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 	defer srv.Stop()
 
 	dialer := func(context.Context, string) (net.Conn, error) { return lis.Dial() }

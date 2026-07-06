@@ -28,7 +28,7 @@ func TestServer_ImplementsComponentAndInitializer(t *testing.T) {
 func TestServer_HealthCheck_Serving(t *testing.T) {
 	// Use a bufconn for hermetic test; replace Listen via a Listener option.
 	bufLis := bufconn.Listen(1024 * 1024)
-	t.Cleanup(func() { bufLis.Close() })
+	t.Cleanup(func() { _ = bufLis.Close() })
 
 	srv := grpcserver.New(
 		grpcserver.WithListener(bufLis),
@@ -54,7 +54,7 @@ func TestServer_HealthCheck_Serving(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	check, err := grpc_health_v1.NewHealthClient(conn).Check(ctx,
 		&grpc_health_v1.HealthCheckRequest{})

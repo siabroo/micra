@@ -10,6 +10,7 @@ import "context"
 // integer levels so adapters can pass through with minimal arithmetic.
 type Level int
 
+// Log-level constants corresponding to slog.Level values.
 const (
 	LevelDebug Level = -4
 	LevelInfo  Level = 0

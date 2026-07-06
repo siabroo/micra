@@ -11,7 +11,7 @@ import (
 )
 
 func TestNew_ImplementsCoreLogger(t *testing.T) {
-	var _ core.Logger = New(slog.Default())
+	var _ = New(slog.Default())
 }
 
 func TestLogger_LevelMethodsRouteToSlog(t *testing.T) {

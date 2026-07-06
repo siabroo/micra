@@ -17,7 +17,11 @@ func TestSetup_InstallsW3CPropagator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	defer shutdown(context.Background())
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			t.Errorf("shutdown: %v", err)
+		}
+	}()
 
 	// global propagator must speak traceparent
 	prop := otel.GetTextMapPropagator()
