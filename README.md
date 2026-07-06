@@ -5,15 +5,10 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/siabroo/micra)](https://goreportcard.com/report/github.com/siabroo/micra)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Note:** while the repository is private, the Go Reference and Go Report Card
-> badges will not resolve; they activate once the repo is public.
-
 A small Go library that owns service bootstrap and lifecycle: gRPC servers, Postgres pools, HTTP servers. No CLI router, no config loader, no DI. Just `App`, `Component`, `Run`, `RunOnce`.
 
-> micra is published as a multi-module repo. Install a module directly, e.g.
-> `go get github.com/siabroo/micra/core@v0.1.0`. While the repo is private,
-> set `GOPRIVATE=github.com/siabroo/*` and ensure your git credentials can
-> read it.
+> micra is published as a multi-module repo — install a module directly, e.g.
+> `go get github.com/siabroo/micra/core@v0.1.1`.
 
 ## Modules
 
