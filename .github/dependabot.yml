@@ -12,7 +12,15 @@ updates:
       - /components/pgxpool
     schedule:
       interval: weekly
+    groups:
+      go-modules:
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
