@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/siabroo/micra/core v0.0.0
+	github.com/siabroo/micra/core v0.1.0
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0
 )
@@ -68,7 +68,3 @@ require (
 	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// In-tree replace for the unreleased core module. Remove this line
-// when extracting micra to its own repo and using a tagged version.
-replace github.com/siabroo/micra/core => ../../core

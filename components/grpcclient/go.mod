@@ -3,7 +3,7 @@ module github.com/siabroo/micra/components/grpcclient
 go 1.26
 
 require (
-	github.com/siabroo/micra/core v0.0.0
+	github.com/siabroo/micra/core v0.1.0
 	google.golang.org/grpc v1.74.2
 )
 
@@ -16,7 +16,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
-
-// In-tree replace for the unreleased core module. Remove this line
-// when extracting micra to its own repo and using a tagged version.
-replace github.com/siabroo/micra/core => ../../core
