@@ -1,0 +1,2 @@
+# Built example binaries (Go's default build output)
+examples/*/micra-example-*

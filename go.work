@@ -1,0 +1,14 @@
+go 1.26
+
+use (
+	./adapters/loggerslog
+	./adapters/otelinit
+	./adapters/otelpgx
+	./components/grpcclient
+	./components/grpcserver
+	./components/httpserver
+	./components/pgxpool
+	./core
+	./examples/01-grpc-server
+	./examples/02-multi-mode-binary
+)
