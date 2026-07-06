@@ -46,3 +46,20 @@ lint:
 test-integration:
     cd adapters/otelpgx && go test -tags=integration ./...
     cd components/pgxpool && go test -tags=integration ./...
+
+# Tag and push all module versions in dependency order. Usage: just release VERSION=v0.1.0
+# Assumes go.mod files already require core@VERSION with no replace directives.
+release VERSION:
+    git tag core/{{VERSION}}
+    git push origin core/{{VERSION}}
+    git tag adapters/loggerslog/{{VERSION}}
+    git tag adapters/otelinit/{{VERSION}}
+    git tag adapters/otelpgx/{{VERSION}}
+    git tag components/grpcclient/{{VERSION}}
+    git tag components/grpcserver/{{VERSION}}
+    git tag components/httpserver/{{VERSION}}
+    git tag components/pgxpool/{{VERSION}}
+    git push origin \
+      adapters/loggerslog/{{VERSION}} adapters/otelinit/{{VERSION}} adapters/otelpgx/{{VERSION}} \
+      components/grpcclient/{{VERSION}} components/grpcserver/{{VERSION}} components/httpserver/{{VERSION}} \
+      components/pgxpool/{{VERSION}}
