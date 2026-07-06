@@ -11,7 +11,7 @@ import (
 )
 
 func TestNew_ImplementsCoreLogger(t *testing.T) {
-	var _ = New(slog.Default())
+	var _ core.Logger = New(slog.Default()) //nolint:staticcheck // explicit compile-time interface assertion
 }
 
 func TestLogger_LevelMethodsRouteToSlog(t *testing.T) {
