@@ -25,8 +25,9 @@ type Config struct {
 // logger's Enabled(Debug)).
 //
 // Assumes RequestID has already tagged the logger in ctx with
-// "requestId" and "method"; rpc.start/end do not re-emit those keys
-// to avoid duplicates in slog output.
+// "requestId", "method", "traceId", "spanId", and (when present)
+// "sessionId"; rpc.start/end do not re-emit those keys to avoid
+// duplicates in slog output.
 func RPCLog(cfg Config) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		log := core.LoggerFrom(ctx)

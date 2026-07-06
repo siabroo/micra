@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"go.opentelemetry.io/otel/baggage"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -251,6 +254,101 @@ func TestRPCLog_RedactsAuthorizationHeader(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("no rpc.start debug call found")
+	}
+}
+
+func TestRequestID_EnrichesSpanAndLoggerWithCorrelationIDs(t *testing.T) {
+	// Recording span so IsRecording() is true and SpanContext is valid.
+	sr := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sr))
+	ctx, span := tp.Tracer("test").Start(context.Background(), "op")
+
+	// session.id baggage (pass-through source).
+	mem, err := baggage.NewMember("session.id", "sess-123")
+	if err != nil {
+		t.Fatalf("NewMember: %v", err)
+	}
+	bag, err := baggage.New(mem)
+	if err != nil {
+		t.Fatalf("New baggage: %v", err)
+	}
+	ctx = baggage.ContextWithBaggage(ctx, bag)
+
+	rec := &recordingLogger{}
+	ctx = core.ContextWithLogger(ctx, rec)
+
+	_, _ = RequestID()(ctx, nil, &grpc.UnaryServerInfo{FullMethod: "/svc/Method"},
+		func(context.Context, any) (any, error) { return nil, nil })
+	span.End()
+
+	// Logger tags: traceId, spanId, sessionId present; sessionId value correct.
+	if len(rec.withCalls) == 0 {
+		t.Fatal("expected With to be called")
+	}
+	first := rec.withCalls[0]
+	for _, k := range []string{"requestId", "method", "traceId", "spanId", "sessionId"} {
+		if !containsKey(first, k) {
+			t.Errorf("With args missing %q: %v", k, first)
+		}
+	}
+	if got := valueForKey(first, "sessionId"); got != "sess-123" {
+		t.Errorf("sessionId = %v, want sess-123", got)
+	}
+
+	// Span attributes: request.id present, session.id == sess-123.
+	ended := sr.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("expected 1 ended span, got %d", len(ended))
+	}
+	attrs := map[string]string{}
+	for _, a := range ended[0].Attributes() {
+		attrs[string(a.Key)] = a.Value.AsString()
+	}
+	if attrs["request.id"] == "" {
+		t.Error("span missing request.id attribute")
+	}
+	if attrs["session.id"] != "sess-123" {
+		t.Errorf("span session.id = %q, want sess-123", attrs["session.id"])
+	}
+}
+
+// valueForKey returns the value following key in a flat k,v,... slice.
+func valueForKey(kv []any, key string) any {
+	for i := 0; i+1 < len(kv); i += 2 {
+		if kv[i] == key {
+			return kv[i+1]
+		}
+	}
+	return nil
+}
+
+func TestRequestID_NoSessionBaggage_OmitsSessionFields(t *testing.T) {
+	sr := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sr))
+	ctx, span := tp.Tracer("test").Start(context.Background(), "op")
+	rec := &recordingLogger{}
+	ctx = core.ContextWithLogger(ctx, rec)
+
+	_, _ = RequestID()(ctx, nil, &grpc.UnaryServerInfo{FullMethod: "/svc/Method"},
+		func(context.Context, any) (any, error) { return nil, nil })
+	span.End()
+
+	// codex #8: guard indices so a regression fails cleanly, not with a panic.
+	if len(rec.withCalls) == 0 {
+		t.Fatal("expected With to be called")
+	}
+	first := rec.withCalls[0]
+	if containsKey(first, "sessionId") {
+		t.Errorf("sessionId must be omitted when no session baggage: %v", first)
+	}
+	ended := sr.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("expected 1 ended span, got %d", len(ended))
+	}
+	for _, a := range ended[0].Attributes() {
+		if string(a.Key) == "session.id" {
+			t.Error("span must not have session.id when no baggage")
+		}
 	}
 }
 
