@@ -1,3 +1,5 @@
+//go:build integration
+
 package pgxpool_test
 
 import (
@@ -13,9 +15,6 @@ import (
 )
 
 func TestPool_HappyPath(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping pgxpool integration test in -short mode")
-	}
 	ctx := context.Background()
 
 	pgC, err := tcpostgres.Run(ctx,
