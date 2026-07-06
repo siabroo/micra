@@ -32,5 +32,25 @@ behaviour and the right shape for fast Init.
 | `WithTarget(string)` | yes | Dial target (host:port, dns:///..., passthrough:///...). |
 | `WithName(string)` | no | Component name. Default "grpc-client". |
 | `WithDialOptions(...grpc.DialOption)` | no | Raw dial opts (credentials, keepalive, etc.). |
+| `WithRoundRobin()` | no | Set the LB policy to round_robin (default is pick_first). |
 | `WithUnaryInterceptors(...)` | no | Chain order of arguments. |
 | `WithStreamInterceptors(...)` | no | Chain order of arguments. |
+
+## Load balancing across pods (Kubernetes)
+
+gRPC's default `pick_first` policy opens one long-lived HTTP/2 connection and
+pins every RPC to a single backend pod — so it neither spreads load nor
+follows a rolling update. To balance client-side, point the target at a
+**headless Service** (so DNS returns pod IPs, not one ClusterIP) and enable
+round_robin:
+
+```go
+grpcclient.New(
+    grpcclient.WithTarget("dns:///auth-headless.prod.svc.cluster.local:50051"),
+    grpcclient.WithRoundRobin(),
+)
+```
+
+The server side pairs with `grpcserver`'s graceful `Stop`, which flips the
+health status to `NOT_SERVING` before draining and sends GOAWAY so clients
+re-resolve onto the new pods.

@@ -25,6 +25,7 @@ type Server struct {
 
 	lis    net.Listener
 	srv    *grpc.Server
+	health *health.Server // non-nil when cfg.healthService; flipped in Stop
 	srvErr chan error
 }
 
@@ -97,6 +98,7 @@ func (s *Server) Init(ctx context.Context) error {
 			h.SetServingStatus(name, grpc_health_v1.HealthCheckResponse_SERVING)
 		}
 		grpc_health_v1.RegisterHealthServer(s.srv, h)
+		s.health = h
 	}
 	if s.cfg.reflection {
 		reflection.Register(s.srv)
@@ -134,9 +136,18 @@ func (s *Server) Start(ctx context.Context) error {
 
 // Stop implements core.Component: GracefulStop bounded by ctx,
 // falling back to Stop on deadline.
+//
+// Before draining, the health service (if enabled) is flipped to
+// NOT_SERVING so a gRPC readiness probe fails and the pod is pulled from
+// the Service EndpointSlice ahead of the drain — avoiding the window where
+// kube-proxy still routes new connections to a terminating pod. Pair with a
+// preStop hook so the endpoint removal has time to propagate.
 func (s *Server) Stop(ctx context.Context) error {
 	if s.srv == nil {
 		return nil
+	}
+	if s.health != nil {
+		s.health.Shutdown() // all statuses -> NOT_SERVING
 	}
 	done := make(chan struct{})
 	go func() {

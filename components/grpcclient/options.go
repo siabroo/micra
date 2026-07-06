@@ -27,6 +27,19 @@ func WithDialOptions(opts ...grpc.DialOption) Option {
 	return func(c *config) { c.dialOpts = append(c.dialOpts, opts...) }
 }
 
+// WithRoundRobin sets the default load-balancing policy to round_robin via
+// the service config. Pair it with a headless-service dns:/// target so the
+// client spreads RPCs across every backend pod (and re-resolves on rolling
+// updates) instead of pinning to a single pod under gRPC's default
+// pick_first policy — the common failure mode for long-lived HTTP/2
+// connections behind a Kubernetes Service.
+func WithRoundRobin() Option {
+	return func(c *config) {
+		c.dialOpts = append(c.dialOpts,
+			grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`))
+	}
+}
+
 // WithUnaryInterceptors appends unary client interceptors (e.g.
 // otelgrpc.UnaryClientInterceptor()).
 func WithUnaryInterceptors(is ...grpc.UnaryClientInterceptor) Option {
