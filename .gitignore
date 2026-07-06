@@ -16,3 +16,6 @@ coverage.*
 
 # Workspace scratch
 .superpowers/
+
+# Ephemeral implementation plans (design specs under docs/superpowers/specs/ ARE committed)
+docs/superpowers/plans/

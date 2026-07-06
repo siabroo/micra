@@ -32,12 +32,14 @@ micra is a multi-module Go library (`core`, `adapters/*`, `components/*`).
   `Stop` component lifecycle, and the interceptor style already in the tree.
 - **Secure, sane defaults.** A library shipping an insecure default is a bug.
 - Before finishing: `just test` (hermetic), `just lint` (0 issues), and
-  `go test -race ./...` in any module you touched must all pass.
+  `go test -race ./...` in any module you touched must all pass. If you touched
+  `components/pgxpool` or `adapters/otelpgx`, also run `just test-integration`
+  (needs Docker).
 
 ## Versioning & releases
 
 - Decide the version bump **from the nature of the changes** (patch/minor/major),
-  per `RELEASING.md` → "Choosing the version bump". Importance decides *whether
+  per `RELEASING.md` → "Choosing the version bump". Urgency decides *whether
   to release now*, not the number.
 - Tag only the modules whose code changed; release in dependency order.
 
