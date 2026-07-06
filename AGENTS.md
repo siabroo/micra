@@ -86,3 +86,20 @@ Reviews are adversarial and read the **actual code**, not just the diff.
    - inline comments near the changed code — no stale or now-incorrect comments.
    A comment that lies about the code is a defect and blocks merge.
 4. Findings are fixed and re-reviewed until clean. Then the maintainer approves.
+
+## Self-instrumenting components
+
+Components record telemetry; the service's providers export it. A micra
+component that emits metrics or traces:
+
+1. Accepts an optional `WithMeterProvider` / `WithTracerProvider` option,
+   defaulting to the global (`otel.GetMeterProvider()` / `otel.GetTracerProvider()`).
+2. At `Init`, creates its `Meter`/`Tracer` from that provider using a **stable
+   instrumentation scope = the component's module path** (e.g.
+   `github.com/siabroo/micra/components/grpcserver`).
+3. Records to instruments and never constructs an exporter.
+
+Export is guaranteed by the service installing providers once via
+`otelinit.WithTracerProvider` / `WithMeterProvider`. This is the OTel API/SDK
+split: components use the API, the service wires the SDK, the collector ships
+the data.

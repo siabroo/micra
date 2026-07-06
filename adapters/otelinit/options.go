@@ -1,15 +1,17 @@
 package otelinit
 
 import (
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type config struct {
-	provider trace.TracerProvider
-	sampler  sdktrace.Sampler
-	resource *resource.Resource
+	provider      trace.TracerProvider
+	meterProvider metric.MeterProvider
+	sampler       sdktrace.Sampler
+	resource      *resource.Resource
 }
 
 // Option configures Setup.
@@ -26,6 +28,14 @@ func defaults() config {
 // X-Ray, etc.) and passes it here. Setup installs it globally.
 func WithTracerProvider(tp trace.TracerProvider) Option {
 	return func(c *config) { c.provider = tp }
+}
+
+// WithMeterProvider installs the given MeterProvider globally (via
+// otel.SetMeterProvider) so any Meter obtained from the global provider
+// exports automatically. Symmetric to WithTracerProvider; the service
+// constructs the provider (OTLP, Cloud Monitoring, etc.). Optional.
+func WithMeterProvider(mp metric.MeterProvider) Option {
+	return func(c *config) { c.meterProvider = mp }
 }
 
 // WithSampler overrides the default ParentBased(TraceIDRatioBased(0.01))

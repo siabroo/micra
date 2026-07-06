@@ -30,19 +30,28 @@ func Setup(ctx context.Context, opts ...Option) (shutdown func(context.Context) 
 	}
 
 	otel.SetTracerProvider(cfg.provider)
+	if cfg.meterProvider != nil {
+		otel.SetMeterProvider(cfg.meterProvider)
+	}
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
 
+	shutdowners := []any{cfg.provider}
+	if cfg.meterProvider != nil {
+		shutdowners = append(shutdowners, cfg.meterProvider)
+	}
 	var once sync.Once
 	var shutdownErr error
 	return func(ctx context.Context) error {
 		once.Do(func() {
-			if s, ok := cfg.provider.(interface {
-				Shutdown(context.Context) error
-			}); ok {
-				shutdownErr = s.Shutdown(ctx)
+			for _, p := range shutdowners {
+				if s, ok := p.(interface{ Shutdown(context.Context) error }); ok {
+					if e := s.Shutdown(ctx); e != nil && shutdownErr == nil {
+						shutdownErr = e
+					}
+				}
 			}
 		})
 		return shutdownErr
