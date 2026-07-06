@@ -1,2 +1,18 @@
 # Built example binaries (Go's default build output)
 examples/*/micra-example-*
+
+# Test / coverage artifacts
+*.out
+*.test
+coverage.*
+
+# OS junk
+.DS_Store
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+
+# Workspace scratch
+.superpowers/
