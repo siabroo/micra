@@ -3,6 +3,7 @@ package interceptors
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -62,10 +63,47 @@ func truncate(s string, n int) string {
 	return s[:n] + "…"
 }
 
+// sensitiveExactKeys is the deny-list of exact lowercase metadata key names
+// that must never appear verbatim in logs.
+var sensitiveExactKeys = map[string]struct{}{
+	"authorization":       {},
+	"cookie":              {},
+	"set-cookie":          {},
+	"x-api-key":           {},
+	"proxy-authorization": {},
+}
+
+// isSensitiveKey reports whether a metadata key should be redacted.
+// Matching is case-insensitive. Keys whose lowercase form contains
+// "token", "secret", or "password" anywhere are also redacted.
+func isSensitiveKey(k string) bool {
+	lower := strings.ToLower(k)
+	if _, ok := sensitiveExactKeys[lower]; ok {
+		return true
+	}
+	return strings.Contains(lower, "token") ||
+		strings.Contains(lower, "secret") ||
+		strings.Contains(lower, "password")
+}
+
+// redactMetadata returns a copy of md with sensitive values replaced by
+// "[REDACTED]". Non-sensitive keys are passed through unchanged.
+func redactMetadata(md metadata.MD) map[string][]string {
+	out := make(map[string][]string, len(md))
+	for k, v := range md {
+		if isSensitiveKey(k) {
+			out[k] = []string{"[REDACTED]"}
+		} else {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 func incomingMetadata(ctx context.Context) any {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil
 	}
-	return md
+	return redactMetadata(md)
 }

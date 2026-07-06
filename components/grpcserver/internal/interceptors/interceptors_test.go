@@ -3,11 +3,14 @@ package interceptors
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/siabroo/micra/core"
 )
@@ -129,6 +132,125 @@ func TestRecovery_ConvertsPanicToInternal(t *testing.T) {
 		})
 	if err == nil {
 		t.Fatal("expected non-nil error after panic")
+	}
+}
+
+// TestRecovery_ReturnsGenericMessage asserts that the unary recovery interceptor
+// does NOT leak the panic value to the caller; the client should only see a
+// fixed "internal error" string.
+func TestRecovery_ReturnsGenericMessage(t *testing.T) {
+	_, err := Recovery()(context.Background(), nil,
+		&grpc.UnaryServerInfo{FullMethod: "/svc/M"},
+		func(context.Context, any) (any, error) {
+			panic("sensitive-internal-detail")
+		})
+	if err == nil {
+		t.Fatal("expected non-nil error after panic")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("code = %v, want Internal", st.Code())
+	}
+	if strings.Contains(st.Message(), "sensitive-internal-detail") {
+		t.Errorf("panic value leaked to client: %q", st.Message())
+	}
+	const wantMsg = "internal error"
+	if st.Message() != wantMsg {
+		t.Errorf("message = %q, want %q", st.Message(), wantMsg)
+	}
+}
+
+// mockServerStream is a minimal grpc.ServerStream for use in tests.
+type mockServerStream struct {
+	ctx context.Context
+}
+
+func (m *mockServerStream) SetHeader(metadata.MD) error  { return nil }
+func (m *mockServerStream) SendHeader(metadata.MD) error { return nil }
+func (m *mockServerStream) SetTrailer(metadata.MD)       {}
+func (m *mockServerStream) Context() context.Context     { return m.ctx }
+func (m *mockServerStream) SendMsg(any) error            { return nil }
+func (m *mockServerStream) RecvMsg(any) error            { return nil }
+
+// TestStreamRecovery_ConvertsPanicToInternal asserts that a panic in a
+// streaming handler is caught and converted to codes.Internal rather than
+// crashing the process.
+func TestStreamRecovery_ConvertsPanicToInternal(t *testing.T) {
+	ss := &mockServerStream{ctx: context.Background()}
+	err := StreamRecovery()(nil, ss, &grpc.StreamServerInfo{FullMethod: "/svc/Stream"},
+		func(_ any, _ grpc.ServerStream) error {
+			panic("stream-panic")
+		})
+	if err == nil {
+		t.Fatal("expected non-nil error after stream panic")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("code = %v, want Internal", st.Code())
+	}
+}
+
+// TestStreamRecovery_ReturnsGenericMessage asserts the stream recovery
+// interceptor does NOT expose the panic value to the caller.
+func TestStreamRecovery_ReturnsGenericMessage(t *testing.T) {
+	ss := &mockServerStream{ctx: context.Background()}
+	err := StreamRecovery()(nil, ss, &grpc.StreamServerInfo{FullMethod: "/svc/Stream"},
+		func(_ any, _ grpc.ServerStream) error {
+			panic("secret-internal-xyz")
+		})
+	st, _ := status.FromError(err)
+	if strings.Contains(st.Message(), "secret-internal-xyz") {
+		t.Errorf("panic detail leaked to stream client: %q", st.Message())
+	}
+	const wantMsg = "internal error"
+	if st.Message() != wantMsg {
+		t.Errorf("message = %q, want %q", st.Message(), wantMsg)
+	}
+}
+
+// TestRPCLog_RedactsAuthorizationHeader asserts that when payload logging is
+// active, sensitive metadata keys (e.g. authorization) are replaced with
+// [REDACTED] and never appear verbatim in log output.
+func TestRPCLog_RedactsAuthorizationHeader(t *testing.T) {
+	rec := &recordingLogger{enabled: true}
+	md := metadata.New(map[string]string{
+		"authorization": "Bearer secrettoken123",
+		"x-request-id": "req-abc",
+	})
+	ctx := metadata.NewIncomingContext(
+		core.ContextWithLogger(context.Background(), rec),
+		md,
+	)
+	_, _ = RPCLog(Config{PayloadLogging: true, PayloadMaxBytes: 200})(
+		ctx, "req", &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
+		func(c context.Context, _ any) (any, error) { return "resp", nil })
+
+	found := false
+	for _, c := range rec.debugCalls {
+		if c.msg != "rpc.start" {
+			continue
+		}
+		found = true
+		for i := 0; i+1 < len(c.args); i += 2 {
+			k, ok := c.args[i].(string)
+			if !ok || k != "metadata" {
+				continue
+			}
+			val := fmt.Sprintf("%v", c.args[i+1])
+			if strings.Contains(val, "secrettoken123") {
+				t.Errorf("authorization token leaked verbatim in log: %v", c.args[i+1])
+			}
+			if !strings.Contains(val, "REDACTED") {
+				t.Errorf("expected [REDACTED] in metadata log, got: %v", c.args[i+1])
+			}
+			// Non-sensitive key must not be redacted.
+			if !strings.Contains(val, "req-abc") {
+				t.Errorf("non-sensitive key x-request-id was unexpectedly redacted: %v", c.args[i+1])
+			}
+		}
+	}
+	if !found {
+		t.Fatal("no rpc.start debug call found")
 	}
 }
 
