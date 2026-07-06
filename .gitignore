@@ -14,8 +14,5 @@ coverage.*
 .vscode/
 *.swp
 
-# Workspace scratch
-.superpowers/
-
-# Ephemeral implementation plans (design specs under docs/superpowers/specs/ ARE committed)
-docs/superpowers/plans/
+# Ephemeral implementation plans (design docs under docs/design/ ARE committed)
+docs/plans/

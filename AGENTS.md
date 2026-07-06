@@ -46,12 +46,12 @@ micra is a multi-module Go library (`core`, `adapters/*`, `components/*`).
 ## Design documents vs. plans
 
 - **Keep design docs.** Specifications / design rationale live in
-  `docs/superpowers/specs/` and ARE committed — they record *why* and *what*.
-  Write one only for substantial or architectural work; for small changes the
-  PR's Why/What is enough.
+  `docs/design/` and ARE committed — they record *why* and *what*. Write one
+  only for substantial or architectural work; for small changes the PR's
+  Why/What is enough.
 - **Do not commit detailed step-by-step implementation plans.** They are
-  ephemeral scaffolding, go stale immediately, and add noise. `docs/superpowers/
-  plans/` is git-ignored; keep plans there or in scratch, never in a PR.
+  ephemeral scaffolding, go stale immediately, and add noise. `docs/plans/` is
+  git-ignored; keep plans there or in scratch, never in a PR.
 
 ## PR description (required format)
 
