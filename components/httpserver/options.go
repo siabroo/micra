@@ -6,13 +6,14 @@ import (
 )
 
 type config struct {
-	name          string
-	addr          string
-	handler       http.Handler
-	readTimeout   time.Duration
-	writeTimeout  time.Duration
-	idleTimeout   time.Duration
-	shutdownGrace time.Duration
+	name              string
+	addr              string
+	handler           http.Handler
+	readHeaderTimeout time.Duration
+	readTimeout       time.Duration
+	writeTimeout      time.Duration
+	idleTimeout       time.Duration
+	shutdownGrace     time.Duration
 }
 
 // Option configures Server via New.
@@ -20,11 +21,12 @@ type Option func(*config)
 
 func defaults() config {
 	return config{
-		name:          "http",
-		readTimeout:   10 * time.Second,
-		writeTimeout:  10 * time.Second,
-		idleTimeout:   60 * time.Second,
-		shutdownGrace: 10 * time.Second,
+		name:              "http",
+		readHeaderTimeout: 5 * time.Second,
+		readTimeout:       10 * time.Second,
+		writeTimeout:      10 * time.Second,
+		idleTimeout:       60 * time.Second,
+		shutdownGrace:     10 * time.Second,
 	}
 }
 
@@ -36,6 +38,13 @@ func WithAddr(addr string) Option { return func(c *config) { c.addr = addr } }
 
 // WithHandler is required. The HTTP handler.
 func WithHandler(h http.Handler) Option { return func(c *config) { c.handler = h } }
+
+// WithReadHeaderTimeout overrides the default 5s deadline for reading request
+// headers. Set independently of WithReadTimeout so that SSE/streaming handlers
+// can call WithReadTimeout(0) without removing header-read protection.
+func WithReadHeaderTimeout(d time.Duration) Option {
+	return func(c *config) { c.readHeaderTimeout = d }
+}
 
 // WithReadTimeout overrides default 10s.
 func WithReadTimeout(d time.Duration) Option { return func(c *config) { c.readTimeout = d } }
