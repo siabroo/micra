@@ -1,5 +1,12 @@
 # Contributing to micra
 
+## Development process
+
+All changes land through a branch and a Pull Request into `main` (never direct
+commits), with a **Why / What** description and adversarial + documentation-currency
+review before merge. The full process — followed by both humans and AI agents —
+is in [`AGENTS.md`](AGENTS.md).
+
 ## Local development
 
 micra is a multi-module Go repo. A root `go.work` lists every module, so
