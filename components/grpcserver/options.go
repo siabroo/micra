@@ -27,7 +27,7 @@ type Option func(*config)
 func defaults() config {
 	return config{
 		name:            "grpc",
-		reflection:      true,
+		reflection:      false, // SECURITY DEFAULT: reflection must be explicitly enabled via WithReflection(true)
 		healthService:   true,
 		payloadMaxBytes: 200,
 	}
@@ -64,7 +64,9 @@ func WithGRPCServerOptions(opts ...grpc.ServerOption) Option {
 	return func(c *config) { c.serverOpts = append(c.serverOpts, opts...) }
 }
 
-// WithReflection toggles grpc.reflection.Register (default true).
+// WithReflection toggles grpc.reflection.Register. Default is false (secure
+// default). Pass WithReflection(true) to enable reflection for development or
+// debugging; do not enable in production unless you control access.
 func WithReflection(enabled bool) Option { return func(c *config) { c.reflection = enabled } }
 
 // WithHealthService toggles registration of the standard grpc health
