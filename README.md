@@ -26,4 +26,4 @@ A small Go library that owns service bootstrap and lifecycle: gRPC servers, Post
 - `components/pgxpool` — Postgres pool as a Component; Init does Connect+Ping.
 - `components/httpserver` — `http.Server` as a Component, for `/metrics`, `/healthz`, etc.
 
-See `docs/superpowers/specs/2026-06-04-go-service-runtime-design.md` and `docs/superpowers/specs/2026-06-05-micra-otel-sqlcommenter-design.md` (in the monorepo) for the design rationale.
+See the package documentation on [pkg.go.dev](https://pkg.go.dev/github.com/siabroo/micra/core) for the design rationale and the full `App`/`Component` contract.

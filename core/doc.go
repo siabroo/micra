@@ -2,10 +2,7 @@
 //
 // The two top-level types are App (the runtime) and Component (the
 // interface implemented by anything that needs to be Init'd, Start'd,
-// and Stop'd). See the design spec
-// `docs/superpowers/specs/2026-06-04-go-service-runtime-design.md` in
-// the parent monorepo for the full contract; this package's doc
-// comments cover the public API surface.
+// and Stop'd). This package's doc comments cover the public API surface.
 //
 // Typical usage:
 //
