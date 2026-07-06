@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directories:
+      - /core
+      - /adapters/loggerslog
+      - /adapters/otelinit
+      - /adapters/otelpgx
+      - /components/grpcclient
+      - /components/grpcserver
+      - /components/httpserver
+      - /components/pgxpool
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
