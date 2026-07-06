@@ -57,6 +57,12 @@ func Run(ctx context.Context, items []Item, stopTimeout time.Duration) error {
 	}
 	startResults := make(chan startResult, len(items))
 
+	// shutdownDone is closed exactly once, when Run is winding down. It gives
+	// still-alive Start goroutines an escape hatch for their result send so we
+	// never send on (nor close) startResults while writers may be alive, and it
+	// tells the drain goroutine to stop. See Phase 5.
+	shutdownDone := make(chan struct{})
+
 	// Track which components actually entered Start so we know which to Stop.
 	running := make([]bool, len(items))
 	var runningMu sync.Mutex
@@ -71,34 +77,67 @@ func Run(ctx context.Context, items []Item, stopTimeout time.Duration) error {
 		go func() {
 			defer startWG.Done()
 			err := safeCall(func() error { return items[i].Start(internalCtx) })
-			startResults <- startResult{idx: i, err: err}
+			// Never block and never risk a send on a closed channel: if the
+			// engine has already moved on (shutdownDone closed), drop the result.
+			select {
+			case startResults <- startResult{idx: i, err: err}:
+			case <-shutdownDone:
+			}
 		}()
 	}
 
 	// ---------- Phase 3: Wait for shutdown trigger ----------
-	var triggerErr error
+	// triggerErr is written by the drain goroutine (on the first Start error)
+	// and by the main goroutine (parent-context cancellation). Both accesses go
+	// through the mutex-guarded helpers below, so there is no data race no
+	// matter which path fires first.
+	var (
+		triggerMu  sync.Mutex
+		triggerErr error
+	)
+	setTrigger := func(err error) {
+		triggerMu.Lock()
+		defer triggerMu.Unlock()
+		if triggerErr == nil {
+			triggerErr = err
+			cancel()
+		}
+	}
+	getTrigger := func() error {
+		triggerMu.Lock()
+		defer triggerMu.Unlock()
+		return triggerErr
+	}
+
+	drainDone := make(chan struct{})
 	go func() {
-		// Drain the first Start error from a running component;
-		// if Start returned nil after ctx cancel, ignore — it's expected.
-		for res := range startResults {
-			if res.err != nil && triggerErr == nil {
-				triggerErr = fmt.Errorf("component %q start: %w", items[res.idx].Name, res.err)
-				cancel()
+		// Capture the first Start error from a running component and trigger
+		// shutdown; if Start returned nil after ctx cancel, ignore — it's
+		// expected. Exit once shutdownDone is closed instead of relying on the
+		// channel being closed (which is unsafe while writers may be alive).
+		defer close(drainDone)
+		for {
+			select {
+			case res := <-startResults:
+				if res.err != nil {
+					setTrigger(fmt.Errorf("component %q start: %w", items[res.idx].Name, res.err))
+				}
+			case <-shutdownDone:
+				return
 			}
 		}
 	}()
 
 	<-internalCtx.Done()
 	// internalCtx is now cancelled — either because parent ctx was
-	// cancelled, or because a Start errored and the goroutine above
+	// cancelled, or because a Start errored and the drain goroutine
 	// cancelled it.
 
 	// If internalCtx was cancelled by parent (not by a Start error),
-	// capture parent's err.
-	if triggerErr == nil {
-		if pe := ctx.Err(); pe != nil {
-			triggerErr = pe
-		}
+	// capture parent's err. setTrigger only records it if no Start error
+	// already won the race.
+	if pe := ctx.Err(); pe != nil {
+		setTrigger(pe)
 	}
 
 	// ---------- Phase 4: Stop (sequential, reverse Register order) ----------
@@ -142,15 +181,21 @@ func Run(ctx context.Context, items []Item, stopTimeout time.Duration) error {
 		stopErrs = append(stopErrs,
 			fmt.Errorf("start goroutines did not exit before deadline: %w", ErrStopTimeout))
 	}
-	close(startResults)
+	// Signal the drain goroutine to stop and release the send in any Start
+	// goroutine that is still (or later becomes) unblocked. startResults is
+	// deliberately never closed: doing so while a stuck Start goroutine may
+	// still send would panic ("send on closed channel") and crash the process.
+	close(shutdownDone)
+	<-drainDone // no more writers to triggerErr after this point
 
 	// ---------- Aggregate ----------
-	if triggerErr == nil && len(stopErrs) == 0 {
+	finalErr := getTrigger()
+	if finalErr == nil && len(stopErrs) == 0 {
 		return nil
 	}
 	all := make([]error, 0, 1+len(stopErrs))
-	if triggerErr != nil {
-		all = append(all, triggerErr)
+	if finalErr != nil {
+		all = append(all, finalErr)
 	}
 	all = append(all, stopErrs...)
 	return errors.Join(all...)
