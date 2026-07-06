@@ -1,7 +1,5 @@
 // Package core defines micra's lifecycle primitives: App, Component,
-// Initializer, and the Logger interface. See micra's README for an
-// overview and docs/superpowers/specs/2026-06-04-go-service-runtime-design.md
-// in the parent monorepo for the design rationale.
+// Initializer, and the Logger interface. See micra's README for an overview.
 package core
 
 import "context"
