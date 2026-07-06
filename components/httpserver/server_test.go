@@ -24,6 +24,25 @@ func pickFreePort(t *testing.T) int {
 	return port
 }
 
+// TestServer_ImplementsComponentAndInitializer verifies the interface contract.
+func TestServer_ImplementsComponentAndInitializer(t *testing.T) {
+	s := httpserver.New(httpserver.WithAddr("127.0.0.1:0"), httpserver.WithHandler(http.NotFoundHandler()))
+	type component interface {
+		Name() string
+		Start(ctx context.Context) error
+		Stop(ctx context.Context) error
+	}
+	type initializer interface {
+		Init(ctx context.Context) error
+	}
+	if _, ok := any(s).(component); !ok {
+		t.Error("*Server does not implement core.Component")
+	}
+	if _, ok := any(s).(initializer); !ok {
+		t.Error("*Server does not implement core.Initializer")
+	}
+}
+
 func TestServer_ServesAndStops(t *testing.T) {
 	port := pickFreePort(t)
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
@@ -36,12 +55,17 @@ func TestServer_ServesAndStops(t *testing.T) {
 
 	s := httpserver.New(httpserver.WithAddr(addr), httpserver.WithHandler(mux))
 
+	if err := s.Init(context.Background()); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	startDone := make(chan error, 1)
 	go func() { startDone <- s.Start(ctx) }()
 
-	// Wait for server to be listening.
+	// Server is already listening (Init opened the listener), but wait briefly
+	// for Serve to accept connections.
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if c, err := net.DialTimeout("tcp", addr, 50*time.Millisecond); err == nil {
