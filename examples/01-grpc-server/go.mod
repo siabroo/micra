@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/siabroo/micra/adapters/loggerslog v0.0.0
 	github.com/siabroo/micra/components/grpcserver v0.0.0
-	github.com/siabroo/micra/core v0.0.0
+	github.com/siabroo/micra/core v0.1.0
 	google.golang.org/grpc v1.74.2
 )
 
