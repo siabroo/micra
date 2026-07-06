@@ -27,8 +27,8 @@ jobs:
           - components/httpserver
           - components/pgxpool
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
       - name: test
@@ -52,11 +52,11 @@ jobs:
           - components/httpserver
           - components/pgxpool
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.x"
-      - uses: golangci/golangci-lint-action@v8
+      - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
           working-directory: ${{ matrix.module }}
@@ -70,8 +70,8 @@ jobs:
           - adapters/otelpgx
           - components/pgxpool
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.x"
       - name: integration test (testcontainers uses the runner's Docker)
@@ -86,8 +86,8 @@ jobs:
           - examples/01-grpc-server
           - examples/02-multi-mode-binary
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.x"
       - name: build + vet example against local source
