@@ -1,8 +1,19 @@
 # micra
 
+[![CI](https://github.com/siabroo/micra/actions/workflows/ci.yml/badge.svg)](https://github.com/siabroo/micra/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/siabroo/micra/core.svg)](https://pkg.go.dev/github.com/siabroo/micra/core)
+[![Go Report Card](https://goreportcard.com/badge/github.com/siabroo/micra)](https://goreportcard.com/report/github.com/siabroo/micra)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+> **Note:** while the repository is private, the Go Reference and Go Report Card
+> badges will not resolve; they activate once the repo is public.
+
 A small Go library that owns service bootstrap and lifecycle: gRPC servers, Postgres pools, HTTP servers. No CLI router, no config loader, no DI. Just `App`, `Component`, `Run`, `RunOnce`.
 
-> v0.1 lives in-tree at `libs/micra/` inside the [nestjs-one monorepo](https://github.com/siabroo/nestjs-one). It will be extracted to `https://github.com/siabroo/micra` after 1–2 iterations of in-tree use. Import paths already use `github.com/siabroo/micra/...` so the extraction is a directory move.
+> micra is published as a multi-module repo. Install a module directly, e.g.
+> `go get github.com/siabroo/micra/core@v0.1.0`. While the repo is private,
+> set `GOPRIVATE=github.com/siabroo/*` and ensure your git credentials can
+> read it.
 
 ## Modules
 
