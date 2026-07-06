@@ -19,6 +19,17 @@ import (
 	"github.com/siabroo/micra/core"
 )
 
+// loggerSeededStream wraps a grpc.ServerStream and overrides its context with
+// one that carries the application logger. This is necessary because gRPC
+// creates stream contexts from context.Background, so without this wrapper the
+// stream-recovery and any downstream stream interceptors would see a no-op logger.
+type loggerSeededStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (w *loggerSeededStream) Context() context.Context { return w.ctx }
+
 // Server wraps a *grpc.Server with micra lifecycle.
 type Server struct {
 	cfg config
@@ -71,6 +82,9 @@ func (s *Server) Init(ctx context.Context) error {
 	seedLogger := func(c context.Context, req any, _ *grpc.UnaryServerInfo, h grpc.UnaryHandler) (any, error) {
 		return h(core.ContextWithLogger(c, appLogger), req)
 	}
+	seedStreamLogger := func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		return handler(srv, &loggerSeededStream{ss, core.ContextWithLogger(ss.Context(), appLogger)})
+	}
 
 	unary := []grpc.UnaryServerInterceptor{
 		seedLogger,
@@ -83,9 +97,18 @@ func (s *Server) Init(ctx context.Context) error {
 	}
 	unary = append(unary, s.cfg.unaryICs...)
 
-	opts := []grpc.ServerOption{grpc.ChainUnaryInterceptor(unary...)}
-	if len(s.cfg.streamICs) > 0 {
-		opts = append(opts, grpc.ChainStreamInterceptor(s.cfg.streamICs...))
+	// Stream interceptor chain is always installed. The built-in
+	// seedStreamLogger and StreamRecovery are prepended unconditionally
+	// so that panics in stream handlers never crash the process.
+	stream := []grpc.StreamServerInterceptor{
+		seedStreamLogger,
+		interceptors.StreamRecovery(),
+	}
+	stream = append(stream, s.cfg.streamICs...)
+
+	opts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(unary...),
+		grpc.ChainStreamInterceptor(stream...),
 	}
 	opts = append(opts, s.cfg.serverOpts...)
 
