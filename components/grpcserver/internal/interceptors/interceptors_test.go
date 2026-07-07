@@ -286,13 +286,17 @@ func TestRequestID_EnrichesSpanAndLoggerWithCorrelationIDs(t *testing.T) {
 		t.Fatal("expected With to be called")
 	}
 	first := rec.withCalls[0]
-	for _, k := range []string{"requestId", "method", "traceId", "spanId", "sessionId"} {
+	for _, k := range []string{"requestId", "method", "traceId", "spanId", "traceSampled", "sessionId"} {
 		if !containsKey(first, k) {
 			t.Errorf("With args missing %q: %v", k, first)
 		}
 	}
 	if got := valueForKey(first, "sessionId"); got != "sess-123" {
 		t.Errorf("sessionId = %v, want sess-123", got)
+	}
+	// The default SDK provider samples every span, so the real flag is true.
+	if got := valueForKey(first, "traceSampled"); got != true {
+		t.Errorf("traceSampled = %v, want true", got)
 	}
 
 	// Span attributes: request.id present, session.id == sess-123.

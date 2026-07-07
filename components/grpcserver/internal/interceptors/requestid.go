@@ -25,8 +25,8 @@ const sessionIDBaggageKey = "session.id"
 // RequestID extracts x-request-id from incoming metadata (generating a
 // UUIDv4 if absent), appends it to outgoing metadata for downstream
 // calls, enriches the active span with correlation ids, and tags the
-// ctx logger with requestId + method + traceId/spanId, plus sessionId
-// when a session.id baggage member is present.
+// ctx logger with requestId + method + traceId/spanId/traceSampled, plus
+// sessionId when a session.id baggage member is present.
 func RequestID() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		rid := extractOrGenerate(ctx)
@@ -43,10 +43,16 @@ func RequestID() grpc.UnaryServerInterceptor {
 		}
 
 		// Tag the ctx logger: requestId + method (as before), plus
-		// traceId/spanId (for log->trace pivot) and sessionId when present.
+		// traceId/spanId (for log->trace pivot), traceSampled (the span's real
+		// sampling decision, so a backend can render correct log<->trace
+		// correlation), and sessionId when present.
 		fields := []any{"requestId", rid, "method", info.FullMethod}
 		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
-			fields = append(fields, "traceId", sc.TraceID().String(), "spanId", sc.SpanID().String())
+			fields = append(fields,
+				"traceId", sc.TraceID().String(),
+				"spanId", sc.SpanID().String(),
+				"traceSampled", sc.IsSampled(),
+			)
 		}
 		if sid != "" {
 			fields = append(fields, "sessionId", sid)
