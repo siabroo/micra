@@ -75,6 +75,12 @@ func TestRequestID_TagsLoggerInContext(t *testing.T) {
 	if !containsKey(first, "requestId") || !containsKey(first, "method") {
 		t.Errorf("With args missing requestId/method: %v", first)
 	}
+	// No tracer provider here → no valid SpanContext → trace fields omitted.
+	for _, k := range []string{"traceId", "spanId", "traceSampled"} {
+		if containsKey(first, k) {
+			t.Errorf("%q must be omitted without a valid span context: %v", k, first)
+		}
+	}
 }
 
 func TestRPCLog_AlwaysLogsRPCEnd(t *testing.T) {
