@@ -3,7 +3,7 @@ module github.com/siabroo/micra/components/grpcclient
 go 1.26
 
 require (
-	github.com/siabroo/micra/core v0.1.0
+	github.com/siabroo/micra/core v0.1.1
 	google.golang.org/grpc v1.82.0
 )
 
