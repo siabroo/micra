@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/siabroo/micra/core v0.1.0
+	github.com/siabroo/micra/core v0.1.1
 	github.com/testcontainers/testcontainers-go v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
 )
