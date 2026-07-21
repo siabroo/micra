@@ -45,7 +45,10 @@ func (c *Client) Name() string { return c.cfg.name }
 // Init implements core.Initializer: open the client and PING it.
 func (c *Client) Init(ctx context.Context) error {
 	var opt *redis.Options
-	if c.cfg.dsn != "" {
+	if c.cfg.dsnSet {
+		if c.cfg.dsn == "" {
+			return errors.New("rediscache: DSN is empty (WithDSN given an empty string)")
+		}
 		parsed, err := redis.ParseURL(c.cfg.dsn)
 		if err != nil {
 			return fmt.Errorf("parse DSN: %w", err)

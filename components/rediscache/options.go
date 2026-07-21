@@ -8,6 +8,7 @@ type config struct {
 	password    string
 	db          int
 	dsn         string
+	dsnSet      bool
 	dialTimeout time.Duration
 	pingTimeout time.Duration
 }
@@ -39,13 +40,17 @@ func WithPassword(password string) Option { return func(c *config) { c.password 
 func WithDB(db int) Option { return func(c *config) { c.db = db } }
 
 // WithDSN sets a Redis connection URL (e.g. "redis://user:pass@host:6379/0").
-// When set, it takes precedence over WithAddr/WithPassword/WithDB. Note that the
-// dial timeout is always taken from WithDialTimeout (default 10s), so any
-// dial_timeout encoded in the DSN query string is ignored.
-func WithDSN(dsn string) Option { return func(c *config) { c.dsn = dsn } }
+// When set, it takes precedence over WithAddr/WithPassword/WithDB. Passing an
+// empty string is an error surfaced by Init (it does not silently fall back to
+// WithAddr), so WithDSN(os.Getenv("REDIS_URL")) fails fast when the variable is
+// unset instead of connecting to the default address. When a positive
+// WithDialTimeout is set (the default is 10s), it overrides any dial_timeout
+// encoded in the DSN query string.
+func WithDSN(dsn string) Option { return func(c *config) { c.dsn = dsn; c.dsnSet = true } }
 
-// WithDialTimeout bounds the initial connection dial in Init. It always applies,
-// overriding any dial_timeout encoded in a WithDSN URL.
+// WithDialTimeout bounds the initial connection dial in Init. A positive value
+// overrides any dial_timeout encoded in a WithDSN URL; a zero value leaves the
+// DSN value (or the go-redis default) in place.
 func WithDialTimeout(d time.Duration) Option { return func(c *config) { c.dialTimeout = d } }
 
 // WithPingTimeout bounds the PING call in Init.

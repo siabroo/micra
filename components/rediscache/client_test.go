@@ -67,6 +67,13 @@ func TestInit_EmptyAddr_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestInit_EmptyDSN_ReturnsError(t *testing.T) {
+	c := New(WithDSN(""))
+	if err := c.Init(context.Background()); err == nil {
+		t.Fatal("Init succeeded with empty DSN, want error")
+	}
+}
+
 func TestInit_BadDSN_ReturnsError(t *testing.T) {
 	c := New(WithDSN("not-a-valid-url"))
 	if err := c.Init(context.Background()); err == nil {
