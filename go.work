@@ -8,6 +8,7 @@ use (
 	./components/grpcserver
 	./components/httpserver
 	./components/pgxpool
+	./components/rediscache
 	./core
 	./examples/01-grpc-server
 	./examples/02-multi-mode-binary
