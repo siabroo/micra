@@ -64,20 +64,36 @@ func (h *hook) record(ctx context.Context, cmd redis.Cmder, err error, dur time.
 	}
 }
 
-// ProcessPipelineHook is a passthrough until pipeline instrumentation is
-// added.
+// ProcessPipelineHook wraps a whole pipeline in a single CLIENT span and
+// records per-command duration and cache hit/miss metrics for every batched
+// command. Individual command timings are not separable within a pipeline, so
+// each command is recorded with the pipeline's total duration. redis.Nil on a
+// batched command (e.g. a GET miss) is treated as a non-error, mirroring the
+// single-command path.
 func (h *hook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
-	return next
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		ctx, end := h.startSpan(ctx, "pipeline", attribute.Int("db.operation.batch.size", len(cmds)))
+		start := time.Now()
+		err := next(ctx, cmds)
+		dur := time.Since(start)
+		for _, cmd := range cmds {
+			h.record(ctx, cmd, cmd.Err(), dur)
+		}
+		end(err)
+		return err
+	}
 }
 
 // startSpan opens a CLIENT span named after the Redis command and returns
 // the span context plus an end function that records the error (unless it
-// is redis.Nil) and ends the span.
-func (h *hook) startSpan(ctx context.Context, operation string) (context.Context, func(error)) {
+// is redis.Nil) and ends the span. Extra attributes are appended to the
+// semconv defaults.
+func (h *hook) startSpan(ctx context.Context, operation string, extra ...attribute.KeyValue) (context.Context, func(error)) {
 	attrs := []attribute.KeyValue{
 		semconv.DBSystemRedis,
 		semconv.DBOperationName(operation),
 	}
+	attrs = append(attrs, extra...)
 	if h.cfg.application != "" {
 		attrs = append(attrs, attribute.String("db.client.application", h.cfg.application))
 	}
