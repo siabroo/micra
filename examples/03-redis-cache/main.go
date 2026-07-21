@@ -8,6 +8,13 @@
 //   - a Publisher that broadcasts a key invalidation which the Subscriber reacts
 //     to — the mechanism sibling instances use to keep their caches in sync.
 //
+// The Redis client is wrapped with adapters/otelredis, so every command in the
+// flow above — including the Get(hit) and the Get-after-delete(miss) — emits an
+// OTel CLIENT span plus command-duration and cache hit/miss metrics. No OTel SDK
+// is configured here, so the instrumentation resolves to the no-op provider at
+// zero cost; wiring an exporter (see adapters/otelinit) is all it takes to see
+// the spans and hit/miss counters.
+//
 // Run Redis first:
 //
 //	docker compose up -d
@@ -23,6 +30,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/siabroo/micra/adapters/loggerslog"
+	"github.com/siabroo/micra/adapters/otelredis"
 	"github.com/siabroo/micra/components/rediscache"
 	"github.com/siabroo/micra/core"
 )
@@ -47,7 +55,11 @@ func main() {
 	}
 
 	err := app.RunOnce(context.Background(), func(ctx context.Context) error {
-		return demo(ctx, client.Redis())
+		// Instrument the client so every command below flows through OTel
+		// spans + hit/miss metrics. AddHook composes, so wrapping once here
+		// covers the Cache, Publisher and Subscriber built from this client.
+		rdb := otelredis.WrapClient(client.Redis(), otelredis.WithApplication("example-redis-cache"))
+		return demo(ctx, rdb)
 	})
 	exit(code(err), nil)
 }
