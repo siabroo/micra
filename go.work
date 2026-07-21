@@ -4,6 +4,7 @@ use (
 	./adapters/loggerslog
 	./adapters/otelinit
 	./adapters/otelpgx
+	./adapters/otelredis
 	./components/grpcclient
 	./components/grpcserver
 	./components/httpserver
