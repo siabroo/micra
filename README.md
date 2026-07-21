@@ -16,6 +16,7 @@ A small Go library that owns service bootstrap and lifecycle: gRPC servers, Post
 - `adapters/loggerslog` — adapts `*slog.Logger` to `core.Logger`.
 - `adapters/otelinit` — installs the W3C propagator and sampler globally so a service-supplied TracerProvider can propagate `traceparent` across gRPC/HTTP boundaries.
 - `adapters/otelpgx` — wraps a `*pgxpool.Pool` to prepend a Google sqlcommenter comment and emit one CLIENT span per query.
+- `adapters/otelredis` — wraps a `*redis.Client` to emit one CLIENT span per Redis command plus command-duration and cache hit/miss metrics.
 - `components/grpcserver` — gRPC server as a Component, with built-in interceptors.
 - `components/grpcclient` — gRPC client connection as a Component.
 - `components/pgxpool` — Postgres pool as a Component; Init does Connect+Ping.

@@ -33,8 +33,8 @@ micra is a multi-module Go library (`core`, `adapters/*`, `components/*`).
 - **Secure, sane defaults.** A library shipping an insecure default is a bug.
 - Before finishing: `just test` (hermetic), `just lint` (0 issues), and
   `go test -race ./...` in any module you touched must all pass. If you touched
-  `components/pgxpool`, `components/rediscache`, or `adapters/otelpgx`, also run
-  `just test-integration` (needs Docker).
+  `components/pgxpool`, `components/rediscache`, `adapters/otelpgx`, or
+  `adapters/otelredis`, also run `just test-integration` (needs Docker).
 
 ## Versioning & releases
 
