@@ -39,10 +39,13 @@ func WithPassword(password string) Option { return func(c *config) { c.password 
 func WithDB(db int) Option { return func(c *config) { c.db = db } }
 
 // WithDSN sets a Redis connection URL (e.g. "redis://user:pass@host:6379/0").
-// When set, it takes precedence over WithAddr/WithPassword/WithDB.
+// When set, it takes precedence over WithAddr/WithPassword/WithDB. Note that the
+// dial timeout is always taken from WithDialTimeout (default 10s), so any
+// dial_timeout encoded in the DSN query string is ignored.
 func WithDSN(dsn string) Option { return func(c *config) { c.dsn = dsn } }
 
-// WithDialTimeout bounds the initial connection dial in Init.
+// WithDialTimeout bounds the initial connection dial in Init. It always applies,
+// overriding any dial_timeout encoded in a WithDSN URL.
 func WithDialTimeout(d time.Duration) Option { return func(c *config) { c.dialTimeout = d } }
 
 // WithPingTimeout bounds the PING call in Init.

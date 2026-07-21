@@ -1,6 +1,7 @@
 package rediscache
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -55,6 +56,15 @@ func TestNamespacedRoundTrip(t *testing.T) {
 	full := c.namespaced(key)
 	if full != "ns:"+key {
 		t.Fatalf("namespaced = %q, want %q", full, "ns:"+key)
+	}
+}
+
+func TestDeleteNoKeysIsNoop(t *testing.T) {
+	// Delete with zero keys must short-circuit before calling the client, so it
+	// neither errors nor dereferences a nil client (Redis Del rejects 0 keys).
+	c := NewCache(nil)
+	if err := c.Delete(context.Background()); err != nil {
+		t.Fatalf("Delete() with no keys = %v, want nil", err)
 	}
 }
 
