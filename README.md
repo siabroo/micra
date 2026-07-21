@@ -20,5 +20,12 @@ A small Go library that owns service bootstrap and lifecycle: gRPC servers, Post
 - `components/grpcclient` — gRPC client connection as a Component.
 - `components/pgxpool` — Postgres pool as a Component; Init does Connect+Ping.
 - `components/httpserver` — `http.Server` as a Component, for `/metrics`, `/healthz`, etc.
+- `components/rediscache` — Redis client as a Component, plus an L2 (shared, Redis-backed) distributed cache and pub/sub key-invalidation helpers for cross-instance sync.
 
 See the package documentation on [pkg.go.dev](https://pkg.go.dev/github.com/siabroo/micra/core) for the design rationale and the full `App`/`Component` contract.
+
+## Examples
+
+- `examples/01-grpc-server` — a minimal gRPC server wired as a Component.
+- `examples/02-multi-mode-binary` — one binary running in multiple modes via `core.New` + `app.Register` + `app.Run`.
+- `examples/03-redis-cache` — the `rediscache` client Component wired into an app, demonstrating L2 cache `Get`/`Set`/`Delete` plus pub/sub invalidation sync (`docker compose up -d`, then `go run .`).
