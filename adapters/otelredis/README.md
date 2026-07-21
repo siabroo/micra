@@ -1,7 +1,8 @@
 # adapters/otelredis
 
-Wrap a `*redis.Client` so every command — and every command in a pipeline —
-emits an OTel CLIENT span plus command-duration and cache hit/miss metrics,
+Wrap a `*redis.Client` so every command emits an OTel CLIENT span (a pipeline
+emits one span for the whole batch) and every command — including each one
+batched in a pipeline — records command-duration and cache hit/miss metrics,
 using go-redis v9's native `Hook` interface.
 
 ```go
@@ -40,9 +41,12 @@ Metrics:
 | `db.client.operation.duration` | Float64 histogram (seconds) | `db.operation.name`, `error` (bool) |
 | `redis.cache.gets` | Int64 counter | `result` = `hit` or `miss` |
 
-Cache hit/miss is derived at the command level: a `GET` returning `redis.Nil`
-is a `miss`, otherwise a `hit`. This keeps the `components/rediscache` component
-free of any OTel dependency, exactly as `pgxpool` has no OTel coupling.
+Cache hit/miss is derived at the command level: a `GET` with a nil error is a
+`hit`, a `GET` returning `redis.Nil` is a `miss`, and a `GET` that fails with a
+genuine error (connection failure, timeout, `WRONGTYPE`, ...) is neither — it is
+excluded from the counter so an outage does not inflate the hit ratio. This
+keeps the `components/rediscache` component free of any OTel dependency, exactly
+as `pgxpool` has no OTel coupling.
 
 ## Optionality — no SDK, no-op by default
 

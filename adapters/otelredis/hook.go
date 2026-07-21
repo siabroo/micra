@@ -79,12 +79,56 @@ func (h *hook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.Process
 		start := time.Now()
 		err := next(ctx, cmds)
 		dur := time.Since(start)
+		fallback := pipelineFallbackErr(err, cmds)
 		for _, cmd := range cmds {
-			h.record(ctx, cmd, cmd.Err(), dur)
+			cmdErr := cmd.Err()
+			if cmdErr == nil {
+				cmdErr = fallback
+			}
+			h.record(ctx, cmd, cmdErr, dur)
 		}
-		end(err)
+		end(pipelineSpanErr(err, cmds))
 		return err
 	}
+}
+
+// pipelineSpanErr derives the error used to set the pipeline span's status.
+// go-redis reports a pipeline's aggregate error as the first command's error
+// (cmdsFirstErr), which may be redis.Nil (a GET miss) even when a later command
+// failed for real. Since startSpan ignores redis.Nil, using the aggregate alone
+// would mark a batch with a genuine failure as successful. Scan every command
+// for the first non-redis.Nil error and prefer it; fall back to the aggregate
+// (which carries transport-level failures not attached to any command).
+func pipelineSpanErr(aggregate error, cmds []redis.Cmder) error {
+	for _, cmd := range cmds {
+		if err := cmd.Err(); err != nil && !errors.Is(err, redis.Nil) {
+			return err
+		}
+	}
+	return aggregate
+}
+
+// pipelineFallbackErr returns the pipeline's aggregate error when it should be
+// attributed to every batched command's metrics, or nil otherwise. go-redis can
+// return a pool- or transport-level failure (e.g. it fails to acquire a
+// connection) before any per-command error is populated; in that case the
+// aggregate is the only signal that the batch failed, and without it each
+// command is recorded with error=false and queued GETs are counted as hits,
+// masking the outage. When any command already carries its own error, go-redis
+// has propagated the failure to the affected commands (read errors set the
+// error on the failing command and every command after it), so the aggregate
+// must not override the earlier commands that genuinely succeeded. redis.Nil is
+// a key miss, not a failure, so it is never used as a fallback.
+func pipelineFallbackErr(aggregate error, cmds []redis.Cmder) error {
+	if aggregate == nil || errors.Is(aggregate, redis.Nil) {
+		return nil
+	}
+	for _, cmd := range cmds {
+		if cmd.Err() != nil {
+			return nil
+		}
+	}
+	return aggregate
 }
 
 // startSpan opens a CLIENT span named after the Redis command and returns

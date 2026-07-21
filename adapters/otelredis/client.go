@@ -1,14 +1,18 @@
 // Package otelredis instruments a *redis.Client with OpenTelemetry using
-// go-redis v9's native Hook interface. For every command (and every
-// command in a pipeline) it emits:
+// go-redis v9's native Hook interface. It emits:
 //
-//   - one CLIENT span per Redis command (tracing parity with adapters/otelpgx), and
-//   - OTel metrics: a command-duration histogram and a cache hit/miss counter.
+//   - one CLIENT span per standalone Redis command, and one CLIENT span
+//     covering a whole pipeline (tracing parity with adapters/otelpgx), and
+//   - OTel metrics per command — a command-duration histogram and a cache
+//     hit/miss counter — recorded for every command, including each command
+//     batched in a pipeline.
 //
-// Cache hit/miss is derived at the command level: a GET returning
-// redis.Nil is a miss, otherwise a hit. This keeps the rediscache
-// component free of any OTel dependency, exactly as pgxpool has no OTel
-// coupling.
+// Cache hit/miss is derived at the command level: a GET with a nil error
+// is a hit, a GET returning redis.Nil is a miss, and a GET that fails with
+// a genuine error (connection failure, timeout, WRONGTYPE, ...) is neither
+// — it is excluded from the hit/miss counter so an outage does not inflate
+// the hit ratio. This keeps the rediscache component free of any OTel
+// dependency, exactly as pgxpool has no OTel coupling.
 //
 // Optionality: this module depends only on the OTel API
 // (go.opentelemetry.io/otel*). It does NOT pull the OTel SDK. A service

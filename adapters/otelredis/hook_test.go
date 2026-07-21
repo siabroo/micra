@@ -235,6 +235,103 @@ func TestProcessPipelineHookEmitsSpanAndPerCommandMetrics(t *testing.T) {
 	}
 }
 
+// TestProcessPipelineHookRealErrorAfterMissMarksSpan guards the case where the
+// pipeline's aggregate error (the first command's error) is redis.Nil — an
+// early GET miss — while a later command failed for real. The span must be
+// marked as error even though the redis.Nil aggregate is not.
+func TestProcessPipelineHookRealErrorAfterMissMarksSpan(t *testing.T) {
+	tp, sr := newRecordingTracerProvider()
+	h := newHook(configWith(WithTracerProvider(tp)))
+
+	missCmd := redis.NewStringCmd(context.Background(), "get", "missing")
+	failCmd := redis.NewStatusCmd(context.Background(), "set", "k", "v")
+	cmds := []redis.Cmder{missCmd, failCmd}
+
+	sentinel := errors.New("boom")
+	next := func(_ context.Context, _ []redis.Cmder) error {
+		// Early GET miss, then a genuine failure on a later command. go-redis
+		// returns the first command's error (redis.Nil) as the aggregate.
+		missCmd.SetErr(redis.Nil)
+		failCmd.SetErr(sentinel)
+		return redis.Nil
+	}
+
+	// The hook propagates the aggregate (redis.Nil) unchanged to the caller.
+	if err := h.ProcessPipelineHook(next)(context.Background(), cmds); !errors.Is(err, redis.Nil) {
+		t.Fatalf("expected redis.Nil aggregate to propagate, got %v", err)
+	}
+
+	spans := sr.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("expected 1 pipeline span, got %d", len(spans))
+	}
+	if spans[0].Status().Code != otelcodes.Error {
+		t.Errorf("a genuine command error behind a redis.Nil miss must mark the span as error, got %v", spans[0].Status().Code)
+	}
+}
+
+// TestProcessPipelineHookPoolErrorMarksEveryCommand guards the case where the
+// pipeline fails at the pool/transport level (e.g. go-redis cannot acquire a
+// connection) before any per-command error is populated: next returns a genuine
+// non-redis.Nil error while every cmd.Err() stays nil. The span must be marked
+// as error and the per-command metrics must attribute the aggregate failure to
+// every command — recording error=true and NOT counting the queued GETs as
+// hits — so a Redis outage is not masked in metrics.
+func TestProcessPipelineHookPoolErrorMarksEveryCommand(t *testing.T) {
+	tp, sr := newRecordingTracerProvider()
+	mp, reader := newRecordingMeterProvider()
+	h := newHook(configWith(WithTracerProvider(tp), WithMeterProvider(mp)))
+
+	getCmd := redis.NewStringCmd(context.Background(), "get", "present")
+	setCmd := redis.NewStatusCmd(context.Background(), "set", "k", "v")
+	cmds := []redis.Cmder{getCmd, setCmd}
+
+	sentinel := errors.New("connection pool exhausted")
+	next := func(_ context.Context, _ []redis.Cmder) error {
+		// Pool/transport failure before any command is written: the aggregate is
+		// non-nil but no command carries its own error.
+		return sentinel
+	}
+
+	if err := h.ProcessPipelineHook(next)(context.Background(), cmds); !errors.Is(err, sentinel) {
+		t.Fatalf("expected pool error to propagate, got %v", err)
+	}
+
+	// The span reflects the failure.
+	spans := sr.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("expected 1 pipeline span, got %d", len(spans))
+	}
+	if spans[0].Status().Code != otelcodes.Error {
+		t.Errorf("a pool-level pipeline failure must mark the span as error, got %v", spans[0].Status().Code)
+	}
+
+	rm := collect(t, reader)
+
+	// Every command's duration is recorded with error=true.
+	dm, ok := findMetric(rm, metricOperationDuration)
+	if !ok {
+		t.Fatalf("missing %q metric", metricOperationDuration)
+	}
+	hist := dm.Data.(metricdata.Histogram[float64])
+	var total uint64
+	for _, dp := range hist.DataPoints {
+		total += dp.Count
+		if v, ok := dp.Attributes.Value("error"); !ok || !v.AsBool() {
+			t.Errorf("duration error attribute = %v (present=%v), want true", v.AsBool(), ok)
+		}
+	}
+	if total != 2 {
+		t.Errorf("total histogram count = %d, want 2", total)
+	}
+
+	// The failed GET must NOT be counted as a hit (or miss): the outage must not
+	// inflate the hit ratio.
+	if _, ok := findMetric(rm, metricCacheGets); ok {
+		t.Errorf("a GET failing under a pool-level pipeline error must not record the %q counter", metricCacheGets)
+	}
+}
+
 // configWith builds a config from options, mirroring WrapClient's setup.
 func configWith(opts ...Option) config {
 	cfg := defaults()
