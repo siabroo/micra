@@ -2,6 +2,10 @@ package rediscache
 
 import "time"
 
+// defaultPingTimeout bounds the PING in Init when no positive WithPingTimeout
+// is set.
+const defaultPingTimeout = 5 * time.Second
+
 type config struct {
 	name        string
 	addr        string
@@ -21,7 +25,7 @@ func defaults() config {
 		name:        "rediscache",
 		addr:        "localhost:6379",
 		dialTimeout: 10 * time.Second,
-		pingTimeout: 5 * time.Second,
+		pingTimeout: defaultPingTimeout,
 	}
 }
 
@@ -53,5 +57,6 @@ func WithDSN(dsn string) Option { return func(c *config) { c.dsn = dsn; c.dsnSet
 // DSN value (or the go-redis default) in place.
 func WithDialTimeout(d time.Duration) Option { return func(c *config) { c.dialTimeout = d } }
 
-// WithPingTimeout bounds the PING call in Init.
+// WithPingTimeout bounds the PING call in Init. A non-positive value falls back
+// to the 5s default.
 func WithPingTimeout(d time.Duration) Option { return func(c *config) { c.pingTimeout = d } }

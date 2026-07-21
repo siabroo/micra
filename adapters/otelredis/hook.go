@@ -46,14 +46,17 @@ func (h *hook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 // record emits the per-command metrics: the operation-duration histogram for
 // every command and, for GET commands, the cache hit/miss counter. redis.Nil
 // is a key miss, not a failure, so it is excluded from the error attribute and
-// counted as a "miss".
+// counted as a "miss". A GET that fails with a genuine (non-redis.Nil) error —
+// a connection failure, timeout, WRONGTYPE, etc. — is neither a hit nor a miss
+// and is therefore excluded from the hit/miss counter, so an outage does not
+// inflate the hit ratio.
 func (h *hook) record(ctx context.Context, cmd redis.Cmder, err error, dur time.Duration) {
 	isErr := err != nil && !errors.Is(err, redis.Nil)
 	h.inst.duration.Record(ctx, dur.Seconds(), metric.WithAttributes(
 		semconv.DBOperationName(cmd.FullName()),
 		attribute.Bool("error", isErr),
 	))
-	if cmd.Name() == "get" {
+	if cmd.Name() == "get" && !isErr {
 		result := "hit"
 		if errors.Is(err, redis.Nil) {
 			result = "miss"

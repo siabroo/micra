@@ -70,7 +70,13 @@ func (c *Client) Init(ctx context.Context) error {
 
 	rdb := redis.NewClient(opt)
 
-	pingCtx, cancel := context.WithTimeout(ctx, c.cfg.pingTimeout)
+	// A non-positive ping timeout would make context.WithTimeout produce an
+	// already-expired context, failing every Init; fall back to the default.
+	pingTimeout := c.cfg.pingTimeout
+	if pingTimeout <= 0 {
+		pingTimeout = defaultPingTimeout
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 	if err := rdb.Ping(pingCtx).Err(); err != nil {
 		_ = rdb.Close()

@@ -3,7 +3,6 @@ package otelredis
 import (
 	"testing"
 
-	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -35,5 +34,4 @@ func TestTracerFallsBackToGlobal(t *testing.T) {
 	if got := cfg.tracer(); got == nil {
 		t.Errorf("tracer() returned nil for global provider")
 	}
-	_ = otel.GetTracerProvider()
 }

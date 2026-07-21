@@ -120,6 +120,23 @@ func TestProcessHookRecordsCacheMiss(t *testing.T) {
 	assertCacheGet(t, reader, "miss", 1)
 }
 
+func TestProcessHookErroredGetDoesNotTouchCounter(t *testing.T) {
+	mp, reader := newRecordingMeterProvider()
+	h := newHook(configWith(WithMeterProvider(mp)))
+
+	// A GET that fails with a genuine (non-redis.Nil) error is neither a hit
+	// nor a miss, so it must not increment the cache-gets counter.
+	next := func(_ context.Context, _ redis.Cmder) error { return errors.New("connection refused") }
+	cmd := redis.NewStringCmd(context.Background(), "get", "present")
+	if err := h.ProcessHook(next)(context.Background(), cmd); err == nil {
+		t.Fatalf("expected error to propagate")
+	}
+
+	if _, ok := findMetric(collect(t, reader), metricCacheGets); ok {
+		t.Errorf("errored GET must not record the %q counter", metricCacheGets)
+	}
+}
+
 func TestProcessHookNonGetDoesNotTouchCounter(t *testing.T) {
 	mp, reader := newRecordingMeterProvider()
 	h := newHook(configWith(WithMeterProvider(mp)))

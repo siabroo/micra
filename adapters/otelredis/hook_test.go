@@ -110,6 +110,44 @@ func TestProcessHookRealErrorMarksSpan(t *testing.T) {
 	}
 }
 
+func TestProcessHookWithApplicationSetsAttribute(t *testing.T) {
+	tp, sr := newRecordingTracerProvider()
+	h := newHook(configWith(WithTracerProvider(tp), WithApplication("svc")))
+
+	next := func(_ context.Context, _ redis.Cmder) error { return nil }
+	cmd := redis.NewStatusCmd(context.Background(), "set", "k", "v")
+	if err := h.ProcessHook(next)(context.Background(), cmd); err != nil {
+		t.Fatalf("ProcessHook returned error: %v", err)
+	}
+
+	spans := sr.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(spans))
+	}
+	if v, ok := attrValue(spans[0].Attributes(), "db.client.application"); !ok || v.AsString() != "svc" {
+		t.Errorf("db.client.application = %v (present=%v), want %q", v.AsString(), ok, "svc")
+	}
+}
+
+func TestProcessHookWithoutApplicationOmitsAttribute(t *testing.T) {
+	tp, sr := newRecordingTracerProvider()
+	h := newHook(configWith(WithTracerProvider(tp)))
+
+	next := func(_ context.Context, _ redis.Cmder) error { return nil }
+	cmd := redis.NewStatusCmd(context.Background(), "set", "k", "v")
+	if err := h.ProcessHook(next)(context.Background(), cmd); err != nil {
+		t.Fatalf("ProcessHook returned error: %v", err)
+	}
+
+	spans := sr.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(spans))
+	}
+	if _, ok := attrValue(spans[0].Attributes(), "db.client.application"); ok {
+		t.Errorf("db.client.application must be omitted when WithApplication is unset")
+	}
+}
+
 func TestProcessHookNoopProviderDoesNotPanic(t *testing.T) {
 	// No provider override => resolves to the global noop provider.
 	h := newHook(defaults())
