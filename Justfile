@@ -8,6 +8,7 @@ test:
     cd components/httpserver && go test -short ./...
     cd components/grpcserver && go test -short ./...
     cd components/grpcclient && go test -short ./...
+    cd components/rediscache && go test -short ./...
 
 # Run vet across every micra module.
 vet:
@@ -19,6 +20,7 @@ vet:
     cd components/httpserver && go vet ./...
     cd components/grpcserver && go vet ./...
     cd components/grpcclient && go vet ./...
+    cd components/rediscache && go vet ./...
 
 # Tidy every module's go.mod.
 tidy:
@@ -30,6 +32,7 @@ tidy:
     cd components/httpserver && go mod tidy
     cd components/grpcserver && go mod tidy
     cd components/grpcclient && go mod tidy
+    cd components/rediscache && go mod tidy
 
 # Run golangci-lint across every micra module.
 lint:
@@ -41,11 +44,13 @@ lint:
     cd components/httpserver && golangci-lint run
     cd components/grpcserver && golangci-lint run
     cd components/grpcclient && golangci-lint run
+    cd components/rediscache && golangci-lint run
 
 # Run Docker-backed integration tests (requires a running Docker daemon).
 test-integration:
     cd adapters/otelpgx && go test -tags=integration ./...
     cd components/pgxpool && go test -tags=integration ./...
+    cd components/rediscache && go test -tags=integration ./...
 
 # Tag and push all module versions in dependency order. Usage: just release VERSION=v0.1.0
 # Assumes go.mod files already require core@VERSION with no replace directives.
@@ -59,7 +64,8 @@ release VERSION:
     git tag components/grpcserver/{{VERSION}}
     git tag components/httpserver/{{VERSION}}
     git tag components/pgxpool/{{VERSION}}
+    git tag components/rediscache/{{VERSION}}
     git push origin \
       adapters/loggerslog/{{VERSION}} adapters/otelinit/{{VERSION}} adapters/otelpgx/{{VERSION}} \
       components/grpcclient/{{VERSION}} components/grpcserver/{{VERSION}} components/httpserver/{{VERSION}} \
-      components/pgxpool/{{VERSION}}
+      components/pgxpool/{{VERSION}} components/rediscache/{{VERSION}}
