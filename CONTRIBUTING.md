@@ -15,7 +15,7 @@ micra is a multi-module Go repo. A root `go.work` lists every module, so
 
 ```sh
 just test              # hermetic unit tests across all modules
-just test-integration  # Docker-backed tests (otelpgx, pgxpool) — needs Docker
+just test-integration  # Docker-backed tests (otelpgx, otelredis, pgxpool, rediscache) — needs Docker
 just lint              # golangci-lint across all modules
 just tidy              # go mod tidy across all modules
 ```

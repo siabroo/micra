@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/siabroo/micra)](https://goreportcard.com/report/github.com/siabroo/micra)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-A small Go library that owns service bootstrap and lifecycle: gRPC servers, Postgres pools, HTTP servers. No CLI router, no config loader, no DI. Just `App`, `Component`, `Run`, `RunOnce`.
+A small Go library that owns service bootstrap and lifecycle: gRPC servers, Postgres pools, HTTP servers, Redis caches. No CLI router, no config loader, no DI. Just `App`, `Component`, `Run`, `RunOnce`.
 
 > micra is published as a multi-module repo — install a module directly, e.g.
 > `go get github.com/siabroo/micra/core@v0.1.1`.
@@ -16,9 +16,17 @@ A small Go library that owns service bootstrap and lifecycle: gRPC servers, Post
 - `adapters/loggerslog` — adapts `*slog.Logger` to `core.Logger`.
 - `adapters/otelinit` — installs the W3C propagator and sampler globally so a service-supplied TracerProvider can propagate `traceparent` across gRPC/HTTP boundaries.
 - `adapters/otelpgx` — wraps a `*pgxpool.Pool` to prepend a Google sqlcommenter comment and emit one CLIENT span per query.
+- `adapters/otelredis` — wraps a `*redis.Client` to emit one CLIENT span per Redis command plus command-duration and cache hit/miss metrics.
 - `components/grpcserver` — gRPC server as a Component, with built-in interceptors.
 - `components/grpcclient` — gRPC client connection as a Component.
 - `components/pgxpool` — Postgres pool as a Component; Init does Connect+Ping.
 - `components/httpserver` — `http.Server` as a Component, for `/metrics`, `/healthz`, etc.
+- `components/rediscache` — Redis client as a Component, plus an L2 (shared, Redis-backed) distributed cache and pub/sub key-invalidation helpers for cross-instance sync.
 
 See the package documentation on [pkg.go.dev](https://pkg.go.dev/github.com/siabroo/micra/core) for the design rationale and the full `App`/`Component` contract.
+
+## Examples
+
+- `examples/01-grpc-server` — a minimal gRPC server wired as a Component.
+- `examples/02-multi-mode-binary` — one binary running in multiple modes via `core.New` + `app.Register` + `app.Run`.
+- `examples/03-redis-cache` — the `rediscache` client Component wired into an app, demonstrating L2 cache `Get`/`Set`/`Delete` plus pub/sub invalidation sync (`docker compose up -d`, then `go run .`).

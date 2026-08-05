@@ -40,7 +40,8 @@ Because dependents require `core`, release in dependency order:
 
 1. Tag and push `core` first: `core/vX.Y.Z`.
 2. In each core-dependent module (`adapters/loggerslog`,
-   `components/grpcclient`, `components/grpcserver`, `components/pgxpool`),
+   `components/grpcclient`, `components/grpcserver`, `components/pgxpool`,
+   `components/rediscache`),
    ensure `go.mod` requires `github.com/siabroo/micra/core@vX.Y.Z` with **no**
    `replace` directive, then `go mod tidy`. Commit.
 3. Tag and push every remaining module at that commit.
