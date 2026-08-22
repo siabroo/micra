@@ -36,7 +36,7 @@ func WithDialOptions(opts ...grpc.DialOption) Option {
 func WithRoundRobin() Option {
 	return func(c *config) {
 		c.dialOpts = append(c.dialOpts,
-			grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`))
+			grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`))
 	}
 }
 

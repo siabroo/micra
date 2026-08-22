@@ -148,22 +148,23 @@ func TestClient_WithRoundRobin_DistributesAcrossBackends(t *testing.T) {
 	}
 	defer func() { _ = c.Stop(context.Background()) }()
 
-	// Let both subconns reach READY — round_robin only spreads across
-	// ready backends.
-	time.Sleep(200 * time.Millisecond)
-
 	cli := healthpb.NewHealthClient(c.Conn())
-	for i := 0; i < 20; i++ {
+	// round_robin only spreads across READY subconns, which connect
+	// asynchronously. Rather than assume a fixed warm-up delay, keep issuing
+	// RPCs until both backends have been hit (proving distribution) or the
+	// deadline expires.
+	deadline := time.Now().Add(5 * time.Second)
+	for atomic.LoadInt32(c1) == 0 || atomic.LoadInt32(c2) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatalf("round_robin did not distribute within deadline: backend1=%d backend2=%d",
+				atomic.LoadInt32(c1), atomic.LoadInt32(c2))
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		_, err := cli.Check(ctx, &healthpb.HealthCheckRequest{}, grpc.WaitForReady(true))
 		cancel()
 		if err != nil {
-			t.Fatalf("Check %d: %v", i, err)
+			t.Fatalf("Check: %v", err)
 		}
-	}
-
-	if atomic.LoadInt32(c1) == 0 || atomic.LoadInt32(c2) == 0 {
-		t.Errorf("round_robin did not distribute: backend1=%d backend2=%d",
-			atomic.LoadInt32(c1), atomic.LoadInt32(c2))
+		time.Sleep(5 * time.Millisecond)
 	}
 }

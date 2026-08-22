@@ -141,12 +141,28 @@ func TestServer_Stop_FlipsHealthToNotServing(t *testing.T) {
 	stopDone := make(chan error, 1)
 	go func() { stopDone <- srv.Stop(stopCtx) }()
 
-	got, err := stream.Recv()
-	if err != nil {
-		t.Fatalf("second Recv (expected NOT_SERVING flip): %v", err)
+	// The flip must arrive on the open Watch stream. Bound the wait so a
+	// lost notification or a regressed ordering fails fast here instead of
+	// hanging until the package timeout — stopCtx does not govern this RPC.
+	type recvResult struct {
+		msg *grpc_health_v1.HealthCheckResponse
+		err error
 	}
-	if got.Status != grpc_health_v1.HealthCheckResponse_NOT_SERVING {
-		t.Errorf("status after Stop = %v, want NOT_SERVING", got.Status)
+	recvCh := make(chan recvResult, 1)
+	go func() {
+		msg, err := stream.Recv()
+		recvCh <- recvResult{msg: msg, err: err}
+	}()
+	select {
+	case r := <-recvCh:
+		if r.err != nil {
+			t.Fatalf("second Recv (expected NOT_SERVING flip): %v", r.err)
+		}
+		if r.msg.Status != grpc_health_v1.HealthCheckResponse_NOT_SERVING {
+			t.Errorf("status after Stop = %v, want NOT_SERVING", r.msg.Status)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("did not observe NOT_SERVING flip within 3s")
 	}
 
 	// End the streaming RPC so GracefulStop can complete promptly.
@@ -160,7 +176,10 @@ func TestServer_Stop_FlipsHealthToNotServing(t *testing.T) {
 		t.Fatal("Stop did not return")
 	}
 	select {
-	case <-startDone:
+	case err := <-startDone:
+		if err != nil {
+			t.Errorf("Start returned %v, want nil", err)
+		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("Start did not return")
 	}

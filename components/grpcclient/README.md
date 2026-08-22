@@ -52,5 +52,6 @@ grpcclient.New(
 ```
 
 The server side pairs with `grpcserver`'s graceful `Stop`, which flips the
-health status to `NOT_SERVING` before draining and sends GOAWAY so clients
-re-resolve onto the new pods.
+health status to `NOT_SERVING` before draining and sends GOAWAY, so clients
+stop using the draining connection and shift RPCs onto the other resolved
+backends.
